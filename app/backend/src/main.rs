@@ -1,5 +1,6 @@
 use anyhow::{Context, Result};
 use salvo::prelude::*;
+use serde::Deserialize;
 use tempfile::TempDir;
 
 use wasmtime::component::{Component, Linker, ResourceTable};
@@ -14,14 +15,7 @@ async fn main() -> anyhow::Result<()> {
     let host = std::env::var("HOST").unwrap_or_else(|_| "127.0.0.1".to_string());
     let port = std::env::var("PORT").unwrap_or_else(|_| "11000".to_string());
 
-    let wasm_bin = compile_to_wasm(
-        r#"
-            fn main() {
-                println!("Hello Wasm!");
-            }
-        "#,
-    )?;
-    let router = Router::new();
+    let router = Router::new().post(run_code_handler);
 
     let acceptor = TcpListener::new(format!("{host}:{port}")).bind().await;
     Server::new(acceptor).serve(router).await;
@@ -40,6 +34,23 @@ impl WasiView for ComponentRunStates {
             table: &mut self.resource_table,
         }
     }
+}
+
+#[derive(Debug, Deserialize)]
+struct RunCodeRequest {
+    language: String,
+    src: String,
+}
+
+#[handler]
+async fn run_code_handler(req: &mut Request, res: &mut Response) {
+    let run_code_req: RunCodeRequest = req.parse_body().await.unwrap();
+
+    if run_code_req.language != "rust" {
+        res.status_code = Some(StatusCode::BAD_REQUEST);
+    }
+    let wasm_bin = compile_to_wasm(&run_code_req.src).unwrap();
+    let run_result = run_wasm(&wasm_bin).await.unwrap();
 }
 
 async fn run_wasm(wasm_bin: &[u8]) -> anyhow::Result<String> {
@@ -61,6 +72,11 @@ async fn run_wasm(wasm_bin: &[u8]) -> anyhow::Result<String> {
     let component = Component::from_binary(&engine, wasm_bin)?;
     let command = Command::instantiate_async(&mut store, &component, &linker).await?;
     let program_result = command.wasi_cli_run().call_run(&mut store).await?;
+    println!(
+        "Wasm run with stdout: {}",
+        String::from_utf8_lossy(&stdout_pipe.contents())
+    );
+
     match program_result {
         Ok(()) => Ok("OK".to_string()),
         Err(()) => Err(anyhow::anyhow!("err")),
