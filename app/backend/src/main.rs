@@ -1,4 +1,4 @@
-use anyhow::Result;
+use anyhow::{Context, Result};
 use salvo::prelude::*;
 use tempfile::TempDir;
 
@@ -14,14 +14,13 @@ async fn main() -> anyhow::Result<()> {
     let host = std::env::var("HOST").unwrap_or_else(|_| "127.0.0.1".to_string());
     let port = std::env::var("PORT").unwrap_or_else(|_| "11000".to_string());
 
-    // let wasm_bin = compile_to_wasm(
-    //     r#"
-    //         fn main() {
-    //             println!("Hello Wasm!");
-    //         }
-    //     "#,
-    // )?;
-
+    let wasm_bin = compile_to_wasm(
+        r#"
+            fn main() {
+                println!("Hello Wasm!");
+            }
+        "#,
+    )?;
     let router = Router::new();
 
     let acceptor = TcpListener::new(format!("{host}:{port}")).bind().await;
@@ -73,7 +72,7 @@ fn compile_to_wasm(src: &str) -> Result<Vec<u8>> {
     let src_path = temp_dir.path().join("main.rs");
     let out_path = temp_dir.path().join("out.wasm");
 
-    std::fs::write(&src_path, src)?;
+    std::fs::write(&src_path, src).context("failed to write source code to file")?;
 
     let output = std::process::Command::new("rustc")
         .args([
@@ -85,6 +84,8 @@ fn compile_to_wasm(src: &str) -> Result<Vec<u8>> {
         ])
         .output()?;
 
-    let wasm = std::fs::read(out_path)?;
+    println!("Status {}", output.status);
+
+    let wasm = std::fs::read(out_path).context("failed to read wasm binary file")?;
     Ok(wasm)
 }

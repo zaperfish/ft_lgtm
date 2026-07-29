@@ -25,20 +25,16 @@
         let
           pkgs = import nixpkgs { inherit system; };
 
-          rust_toolchain =
-            fenix.packages.${system}.stable.withComponents [
-              "cargo"
-              "rustc"
-              "rust-analyzer"
-              "rust-src"
-              "rustfmt"
-              "clippy"
+          rust_toolchain = fenix.packages.${system}.combine [
+              fenix.packages.${system}.stable.toolchain
+              fenix.packages.${system}.targets.wasm32-wasip2.stable.rust-std
             ];
         in {
           default = pkgs.mkShell {
             packages = with pkgs; [
               rust_toolchain
               just
+              wasmtime
             ];
 
             shellHook = ''
