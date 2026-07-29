@@ -3,6 +3,8 @@ use salvo::prelude::*;
 use serde::Deserialize;
 use tempfile::TempDir;
 
+use tracing::{event, instrument};
+use tracing_subscriber::fmt::format::FmtSpan;
 use wasmtime::component::{Component, Linker, ResourceTable};
 use wasmtime::*;
 use wasmtime_wasi::p2::bindings::Command;
@@ -10,7 +12,9 @@ use wasmtime_wasi::{WasiCtx, WasiCtxView, WasiView};
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    tracing_subscriber::fmt().init();
+    tracing_subscriber::fmt()
+        .with_span_events(FmtSpan::CLOSE)
+        .init();
 
     let host = std::env::var("HOST").unwrap_or_else(|_| "127.0.0.1".to_string());
     let port = std::env::var("PORT").unwrap_or_else(|_| "11000".to_string());
@@ -42,17 +46,23 @@ struct RunCodeRequest {
     src: String,
 }
 
+use tracing::Level;
+#[instrument(skip(req, res))]
 #[handler]
 async fn run_code_handler(req: &mut Request, res: &mut Response) {
+    // let span = tracing::span!(Level::INFO, "run_code_span");
+    // let _enter = span.enter();
     let run_code_req: RunCodeRequest = req.parse_body().await.unwrap();
 
     if run_code_req.language != "rust" {
         res.status_code = Some(StatusCode::BAD_REQUEST);
     }
+    event!(Level::INFO, "AJHAHHAHA");
     let wasm_bin = compile_to_wasm(&run_code_req.src).unwrap();
     let run_result = run_wasm(&wasm_bin).await.unwrap();
 }
 
+#[instrument(skip(wasm_bin))]
 async fn run_wasm(wasm_bin: &[u8]) -> anyhow::Result<String> {
     let engine = Engine::default();
 
@@ -72,10 +82,10 @@ async fn run_wasm(wasm_bin: &[u8]) -> anyhow::Result<String> {
     let component = Component::from_binary(&engine, wasm_bin)?;
     let command = Command::instantiate_async(&mut store, &component, &linker).await?;
     let program_result = command.wasi_cli_run().call_run(&mut store).await?;
-    println!(
-        "Wasm run with stdout: {}",
-        String::from_utf8_lossy(&stdout_pipe.contents())
-    );
+    // println!(
+    //     "Wasm run with stdout: {}",
+    //     String::from_utf8_lossy(&stdout_pipe.contents())
+    // );
 
     match program_result {
         Ok(()) => Ok("OK".to_string()),
@@ -83,6 +93,7 @@ async fn run_wasm(wasm_bin: &[u8]) -> anyhow::Result<String> {
     }
 }
 
+#[instrument(skip(src))]
 fn compile_to_wasm(src: &str) -> Result<Vec<u8>> {
     let temp_dir = TempDir::new()?;
     let src_path = temp_dir.path().join("main.rs");
@@ -100,7 +111,7 @@ fn compile_to_wasm(src: &str) -> Result<Vec<u8>> {
         ])
         .output()?;
 
-    println!("Status {}", output.status);
+    // println!("Status {}", output.status);
 
     let wasm = std::fs::read(out_path).context("failed to read wasm binary file")?;
     Ok(wasm)
