@@ -47,14 +47,8 @@ struct RunResponse {
     run_result: Option<RunResult>,
 }
 
-pub async fn run_app() {
-    let host = std::env::var("HOST").unwrap_or_else(|_| "127.0.0.1".to_string());
-    let port = std::env::var("PORT").unwrap_or_else(|_| "11000".to_string());
-
-    let router = Router::with_path("api").push(Router::with_path("code/run").post(run_handler));
-
-    let acceptor = TcpListener::new(format!("{host}:{port}")).bind().await;
-    Server::new(acceptor).serve(router).await;
+pub fn get_run_routes() -> Router {
+    Router::with_path("code/run").post(run_handler)
 }
 
 #[instrument(skip(req))]
