@@ -1,40 +1,16 @@
-use std::io::stderr;
-use std::process::{ExitCode, ExitStatus};
-use std::ptr::without_provenance_mut;
-
 use anyhow::{Context, Result};
 use salvo::prelude::*;
 use serde::{Deserialize, Serialize};
 use tempfile::TempDir;
-
-use tracing::{event, instrument};
+use tracing::instrument;
 use wasmtime::component::{Component, Linker, ResourceTable};
 use wasmtime::*;
 use wasmtime_wasi::p2::bindings::Command;
 use wasmtime_wasi::{WasiCtx, WasiCtxView, WasiView};
 
-pub async fn run_app() {
-    let host = std::env::var("HOST").unwrap_or_else(|_| "127.0.0.1".to_string());
-    let port = std::env::var("PORT").unwrap_or_else(|_| "11000".to_string());
-
-    let router = Router::with_path("api").push(Router::with_path("code/run").post(run_handler));
-
-    let acceptor = TcpListener::new(format!("{host}:{port}")).bind().await;
-    Server::new(acceptor).serve(router).await;
-}
-
 pub struct ComponentRunStates {
     pub wasi_ctx: WasiCtx,
     pub resource_table: ResourceTable,
-}
-
-impl WasiView for ComponentRunStates {
-    fn ctx(&mut self) -> WasiCtxView<'_> {
-        WasiCtxView {
-            ctx: &mut self.wasi_ctx,
-            table: &mut self.resource_table,
-        }
-    }
 }
 
 #[derive(Debug, Deserialize)]
@@ -58,20 +34,27 @@ struct CompileResponse {
     stderr: String,
 }
 
-impl From<CompileResult> for CompileResponse {
-    fn from(result: CompileResult) -> Self {
-        Self {
-            status: result.status,
-            stdout: result.stdout,
-            stderr: result.stderr,
-        }
-    }
+#[derive(Debug, Serialize)]
+struct RunResult {
+    status: i32,
+    stdout: String,
+    stderr: String,
 }
 
 #[derive(Debug, Serialize)]
 struct RunResponse {
     compile_result: CompileResponse,
     run_result: Option<RunResult>,
+}
+
+pub async fn run_app() {
+    let host = std::env::var("HOST").unwrap_or_else(|_| "127.0.0.1".to_string());
+    let port = std::env::var("PORT").unwrap_or_else(|_| "11000".to_string());
+
+    let router = Router::with_path("api").push(Router::with_path("code/run").post(run_handler));
+
+    let acceptor = TcpListener::new(format!("{host}:{port}")).bind().await;
+    Server::new(acceptor).serve(router).await;
 }
 
 #[instrument(skip(req))]
@@ -86,31 +69,29 @@ async fn run_handler(req: &mut Request) -> Result<Json<RunResponse>, StatusError
         return Err(StatusError::bad_request().brief("unsupported language"));
     }
 
-    let compile_result =
-        compile_to_wasm(&body.src).map_err(|_| StatusError::internal_server_error())?;
-
-    if compile_result.status != 0 {
-        return Ok(Json(RunResponse {
-            compile_result: compile_result.into(),
-            run_result: None,
-        }));
-    }
-
-    let run_result = run_wasm(compile_result.bin.as_deref().unwrap())
+    let response = compile_and_run(&body.src)
         .await
-        .unwrap();
+        .map_err(|_| StatusError::internal_server_error())?;
 
-    Ok(Json(RunResponse {
-        compile_result: compile_result.into(),
-        run_result: Some(run_result),
-    }))
+    Ok(Json(response))
 }
 
-#[derive(Debug, Serialize)]
-struct RunResult {
-    status: i32,
-    stdout: String,
-    stderr: String,
+async fn compile_and_run(src: &str) -> Result<RunResponse> {
+    let compile_result = compile_to_wasm(src)?;
+
+    if compile_result.status != 0 {
+        return Ok(RunResponse {
+            compile_result: compile_result.into(),
+            run_result: None,
+        });
+    }
+
+    let run_result = run_wasm(compile_result.bin.as_deref().unwrap()).await?;
+
+    Ok(RunResponse {
+        compile_result: compile_result.into(),
+        run_result: Some(run_result),
+    })
 }
 
 #[instrument(skip(bin))]
@@ -189,4 +170,23 @@ fn compile_to_wasm(src: &str) -> Result<CompileResult> {
         stderr,
         bin,
     })
+}
+
+impl From<CompileResult> for CompileResponse {
+    fn from(result: CompileResult) -> Self {
+        Self {
+            status: result.status,
+            stdout: result.stdout,
+            stderr: result.stderr,
+        }
+    }
+}
+
+impl WasiView for ComponentRunStates {
+    fn ctx(&mut self) -> WasiCtxView<'_> {
+        WasiCtxView {
+            ctx: &mut self.wasi_ctx,
+            table: &mut self.resource_table,
+        }
+    }
 }
