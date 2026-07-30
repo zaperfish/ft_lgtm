@@ -14,7 +14,7 @@ pub struct ComponentRunStates {
 }
 
 #[derive(Debug, Deserialize)]
-struct RunCodeRequest {
+struct CodeSubmission {
     language: String,
     src: String,
 }
@@ -60,7 +60,7 @@ pub async fn run_app() {
 #[instrument(skip(req))]
 #[handler]
 async fn run_handler(req: &mut Request) -> Result<Json<RunResponse>, StatusError> {
-    let body: RunCodeRequest = req
+    let body: CodeSubmission = req
         .parse_body()
         .await
         .map_err(|err| StatusError::bad_request().brief(err.to_string()))?;
