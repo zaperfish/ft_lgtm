@@ -69,29 +69,26 @@ async fn run_handler(req: &mut Request) -> Result<Json<RunResponse>, StatusError
         return Err(StatusError::bad_request().brief("unsupported language"));
     }
 
-    let response = compile_and_run(&body.src)
+    let (compile_result, run_result) = compile_and_run(&body.src)
         .await
         .map_err(|_| StatusError::internal_server_error())?;
 
-    Ok(Json(response))
+    Ok(Json(RunResponse {
+        compile_result: compile_result.into(),
+        run_result,
+    }))
 }
 
-async fn compile_and_run(src: &str) -> Result<RunResponse> {
+async fn compile_and_run(src: &str) -> Result<(CompileResult, Option<RunResult>)> {
     let compile_result = compile_to_wasm(src)?;
 
     if compile_result.status != 0 {
-        return Ok(RunResponse {
-            compile_result: compile_result.into(),
-            run_result: None,
-        });
+        return Ok((compile_result, None));
     }
 
     let run_result = run_wasm(compile_result.bin.as_deref().unwrap()).await?;
 
-    Ok(RunResponse {
-        compile_result: compile_result.into(),
-        run_result: Some(run_result),
-    })
+    Ok((compile_result, Some(run_result)))
 }
 
 #[instrument(skip(bin))]
