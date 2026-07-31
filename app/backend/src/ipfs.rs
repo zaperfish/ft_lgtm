@@ -10,7 +10,7 @@ struct IpfsItem {
 }
 
 pub async fn publish(src: &str, run_result: &RunResult) -> Result<String> {
-    const URL: &str = "http://localhost:5001/api/v0/add?wrap-with-directory=true";
+    const URL: &str = "http://ipfs-node:5001/api/v0/add?wrap-with-directory=true";
 
     let src_part = Part::text(src.to_string())
         .file_name("main.rs")

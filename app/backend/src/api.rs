@@ -1,3 +1,5 @@
+use tracing::error;
+
 use crate::compiler::{CompileResult, compile_to_wasm};
 use crate::executor::{ExecutionResult, execute_wasm};
 use crate::ipfs;
@@ -52,9 +54,11 @@ async fn run_handler(req: &mut Request) -> Result<Json<RunResponse>, StatusError
     }
 
     let src = body.src;
-    let (mut compile_result, execution_result) = compile_and_execute(&src)
-        .await
-        .map_err(|_| StatusError::internal_server_error())?;
+    let (mut compile_result, execution_result) =
+        compile_and_execute(&src).await.map_err(|err| {
+            error!(error = %err, "compile_and_exexute failed");
+            StatusError::internal_server_error()
+        })?;
 
     compile_result.bin = None;
     let run_result = RunResult {
@@ -62,9 +66,10 @@ async fn run_handler(req: &mut Request) -> Result<Json<RunResponse>, StatusError
         execution_result,
     };
 
-    let cid = ipfs::publish(&src, &run_result)
-        .await
-        .map_err(|_| StatusError::internal_server_error())?;
+    let cid = ipfs::publish(&src, &run_result).await.map_err(|err| {
+        error!(error = %err, "publishing to ipfs node failed");
+        StatusError::internal_server_error()
+    })?;
 
     Ok(Json(RunResponse { run_result, cid }))
 }
