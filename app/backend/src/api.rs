@@ -1,5 +1,6 @@
 use crate::compiler::{CompileResult, compile_to_wasm};
 use crate::executor::{ExecutionResult, execute_wasm};
+use crate::ipfs;
 
 use anyhow::Result;
 use salvo::prelude::*;
@@ -13,16 +14,15 @@ struct CodeSubmission {
 }
 
 #[derive(Debug, Serialize)]
-struct CompileResponse {
-    status: i32,
-    stdout: String,
-    stderr: String,
+pub struct RunResult {
+    compile_result: CompileResult,
+    execution_result: Option<ExecutionResult>,
 }
 
 #[derive(Debug, Serialize)]
-struct RunResponse {
-    compile_result: CompileResponse,
-    execution_result: Option<ExecutionResult>,
+pub struct RunResponse {
+    run_result: RunResult,
+    cid: String,
 }
 
 pub async fn run_app() {
@@ -51,14 +51,22 @@ async fn run_handler(req: &mut Request) -> Result<Json<RunResponse>, StatusError
         return Err(StatusError::bad_request().brief("unsupported language"));
     }
 
-    let (compile_result, execution_result) = compile_and_execute(&body.src)
+    let src = body.src;
+    let (mut compile_result, execution_result) = compile_and_execute(&src)
         .await
         .map_err(|_| StatusError::internal_server_error())?;
 
-    Ok(Json(RunResponse {
-        compile_result: compile_result.into(),
+    compile_result.bin = None;
+    let run_result = RunResult {
+        compile_result,
         execution_result,
-    }))
+    };
+
+    let cid = ipfs::publish(&src, &run_result)
+        .await
+        .map_err(|_| StatusError::internal_server_error())?;
+
+    Ok(Json(RunResponse { run_result, cid }))
 }
 
 async fn compile_and_execute(src: &str) -> Result<(CompileResult, Option<ExecutionResult>)> {
@@ -71,14 +79,4 @@ async fn compile_and_execute(src: &str) -> Result<(CompileResult, Option<Executi
     let execution_result = execute_wasm(compile_result.bin.as_deref().unwrap()).await?;
 
     Ok((compile_result, Some(execution_result)))
-}
-
-impl From<CompileResult> for CompileResponse {
-    fn from(result: CompileResult) -> Self {
-        Self {
-            status: result.status,
-            stdout: result.stdout,
-            stderr: result.stderr,
-        }
-    }
 }
