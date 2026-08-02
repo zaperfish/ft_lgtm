@@ -35,6 +35,7 @@
               rust_toolchain
               just
               wasmtime
+              nodejs_24
             ];
 
             shellHook = ''

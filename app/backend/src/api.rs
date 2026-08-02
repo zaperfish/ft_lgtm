@@ -1,3 +1,5 @@
+use salvo::cors::Cors;
+use salvo::http::Method;
 use tracing::error;
 
 use crate::compiler::{CompileResult, compile_to_wasm};
@@ -24,17 +26,24 @@ pub struct RunResult {
 #[derive(Debug, Serialize)]
 pub struct RunResponse {
     run_result: RunResult,
-    cid: String,
+    cid: Option<String>,
 }
 
 pub async fn run_app() {
     let host = std::env::var("HOST").unwrap_or_else(|_| "127.0.0.1".to_string());
     let port = std::env::var("PORT").unwrap_or_else(|_| "11000".to_string());
 
+    let cors = Cors::new()
+        .allow_origin(["http://localhost:5173", "http://127.0.0.1:5173"])
+        .allow_methods(vec![Method::POST])
+        .allow_headers(vec!["content-type"])
+        .into_handler();
+
     let router = Router::with_path("api").push(run_router());
+    let service = Service::new(router).hoop(cors);
 
     let acceptor = TcpListener::new(format!("{host}:{port}")).bind().await;
-    Server::new(acceptor).serve(router).await;
+    Server::new(acceptor).serve(service).await;
 }
 
 fn run_router() -> Router {
@@ -64,9 +73,10 @@ async fn run_handler(req: &mut Request) -> Result<Json<RunResponse>, StatusError
         execution_result,
     };
 
-    let cid = ipfs::publish(&src, &run_result)
-        .await
-        .map_err(log_and_500("failed to publish to ipfs node"))?;
+    let cid = match ipfs::publish(&src, &run_result).await {
+        Ok(cid) => Some(cid),
+        Err(_) => None,
+    };
 
     Ok(Json(RunResponse { run_result, cid }))
 }
