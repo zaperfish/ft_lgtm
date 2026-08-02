@@ -75,7 +75,10 @@ async fn run_handler(req: &mut Request) -> Result<Json<RunResponse>, StatusError
 
     let cid = match ipfs::publish(&src, &run_result).await {
         Ok(cid) => Some(cid),
-        Err(_) => None,
+        Err(err) => {
+            error!(error = %err, "failed to publish to ipfs");
+            None
+        }
     };
 
     Ok(Json(RunResponse { run_result, cid }))
