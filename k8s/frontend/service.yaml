@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: ft-lgtm-frontend
+spec:
+  selector:
+    app: ft-lgtm-frontend
+
+  ports:
+    - port: 11001
+      targetPort: 3000

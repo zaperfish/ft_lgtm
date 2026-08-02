@@ -1,18 +1,18 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: ipfs-node
+  name: ft-lgtm-ipfs-node
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: ipfs-node
+      app: ft-lgtm-ipfs-node
   template:
     metadata:
       labels:
-        app: ipfs-node
+        app: ft-lgtm-ipfs-node
     spec:
       containers:
-        - name: ipfs-node
+        - name: ft-lgtm-ipfs-node
           image: ipfs/kubo:v0.42.0
           imagePullPolicy: IfNotPresent

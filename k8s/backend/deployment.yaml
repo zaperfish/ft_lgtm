@@ -1,20 +1,20 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: backend
+  name: ft-lgtm-backend
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: backend
+      app: ft-lgtm-backend
   template:
     metadata:
       labels:
-        app: backend
+        app: ft-lgtm-backend
     spec:
       containers:
-        - name: backend
-          image: backend:local
+        - name: ft-lgtm-backend
+          image: ft-lgtm-backend:local
           imagePullPolicy: Never
           env:
             - name: HOST

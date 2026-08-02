@@ -1,0 +1,18 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ft-lgtm-frontend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ft-lgtm-frontend
+  template:
+    metadata:
+      labels:
+        app: ft-lgtm-frontend
+    spec:
+      containers:
+        - name: ft-lgtm-frontend
+          image: ft-lgtm-frontend:local
+          imagePullPolicy: Never

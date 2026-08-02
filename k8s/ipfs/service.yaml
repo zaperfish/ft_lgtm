@@ -1,10 +1,10 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: ipfs-node
+  name: ft-lgtm-ipfs-node
 spec:
   selector:
-    app: ipfs-node
+    app: ft-lgtm-ipfs-node
   ports:
     - port: 5001
       targetPort: 5001
