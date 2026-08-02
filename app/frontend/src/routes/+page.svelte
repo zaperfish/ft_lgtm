@@ -14,6 +14,7 @@
 	let src = $state('fn main() {\n' + '    println!("Hello ft-lgtm!");\n' + '}');
 	let compileStatus = $state(0);
 	let ipfsStatus = $state(true);
+	let responseStatus = $state(true);
 	let stdout = $state('');
 	let stderr = $state('');
 
@@ -46,10 +47,13 @@
 			});
 
 			if (!response.ok) {
+				responseStatus = false;
 				throw new Error('Request failed');
 			}
+			responseStatus = true;
 
 			const result = await response.json();
+			console.log(result.run_result);
 			compileStatus = result.run_result?.compile_result?.status;
 			if (compileStatus != 0) {
 				dotColor = '#ef4444';
@@ -59,6 +63,7 @@
 				dotColor = '#22c55e';
 				stdout = result.run_result?.execution_result?.stdout ?? '';
 				stderr = result.run_result?.execution_result?.stderr ?? '';
+				console.log(result.run_result?.cid);
 				if (result.run_result?.cid) {
 					ipfsStatus = true;
 					addRun(result.run_result?.cid);
@@ -246,7 +251,13 @@
 			onpointerdown={startDrag}
 		></div>
 		<div class="output-pane" style="width: {100 - leftWidth}%">
-			{#if compileStatus != 0}
+			{#if responseStatus == false}
+				<div class="compile-error">
+					<AlertCircle size="15" />
+					<span>Oh no something went wrong (≧︿≦)</span>
+				</div>
+				<p class="output-content">{stderr}</p>
+			{:else if compileStatus != 0}
 				<div class="compile-error">
 					<AlertCircle size="15" />
 					<span>Failed to compile</span>
