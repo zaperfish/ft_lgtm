@@ -16,3 +16,10 @@ spec:
         - name: ft-lgtm-ipfs-node
           image: ipfs/kubo:v0.42.0
           imagePullPolicy: IfNotPresent
+          volumeMounts:
+            - name: ipfs-data
+              mountPath: /data/ipfs
+      volumes:
+        - name: ipfs-data
+          persistentVolumeClaim:
+            claimName: ft-lgtm-ipfs-data

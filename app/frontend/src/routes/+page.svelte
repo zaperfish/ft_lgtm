@@ -63,10 +63,10 @@
 				dotColor = '#22c55e';
 				stdout = result.run_result?.execution_result?.stdout ?? '';
 				stderr = result.run_result?.execution_result?.stderr ?? '';
-				console.log(result.run_result?.cid);
-				if (result.run_result?.cid) {
+				console.log(result.cid);
+				if (result.cid) {
 					ipfsStatus = true;
-					addRun(result.run_result?.cid);
+					addRun(result.cid);
 				} else {
 					ipfsStatus = false;
 				}
@@ -305,7 +305,7 @@
 		z-index: 100;
 	}
 	.dropdown-item-time {
-		font-size: 11px;
+		font-size: 9px;
 		color: #999;
 		flex-shrink: 0;
 		white-space: nowrap;
@@ -324,8 +324,8 @@
 	}
 
 	.dropdown-item-cid {
-		font-size: 13px;
-		color: #333;
+		font-size: 11px;
+		color: #6b7280;
 		white-space: nowrap;
 		overflow: hidden;
 		text-overflow: ellipsis;
