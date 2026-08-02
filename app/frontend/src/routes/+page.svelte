@@ -34,7 +34,7 @@
 		isRunning = true;
 
 		try {
-			const response = await fetch('http://localhost:11000/api/code/run', {
+			const response = await fetch('/api/code/run', {
 				method: 'POST',
 				headers: {
 					'Content-Type': 'application/json'
