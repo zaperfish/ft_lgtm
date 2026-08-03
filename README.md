@@ -1,4 +1,4 @@
-*This project has been created as part of the 42 curriculum by zaperfish
+*This project has been created as part of the 42 curriculum by zaperfish*
 
 # FT-LGTM
 
@@ -80,6 +80,8 @@ This command installs:
 - k3d
 - kubectl
 - just
+
+> **Docker is assumed to be alreadt installed by the user**
 
 Deploy the complete stack:
 
