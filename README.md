@@ -81,7 +81,7 @@ This command installs:
 - kubectl
 - just
 
-> **Docker is assumed to be alreadt installed by the user**
+> **Docker is assumed to be already installed by the user**
 
 Deploy the complete stack:
 

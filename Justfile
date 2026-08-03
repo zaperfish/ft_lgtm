@@ -13,7 +13,7 @@ deploy:
 ensure-cluster:
     #!/usr/bin/env bash
     if ! k3d cluster list | grep -q ft-lgtm; then
-        k3d cluster create ft-lgtm -p "11002:80@loadbalancer"
+        k3d cluster create ft-lgtm -p "80:80@loadbalancer" -p "443:443@loadbalancer"
     else
         echo "Cluster ft-lgtm already exists, skipping creation"
     fi
