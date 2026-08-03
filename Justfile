@@ -40,6 +40,7 @@ build-backend-image:
 add-images:
     just add-frontend-image
     just add-backend-image
+    just add-dependency-images
 
 # Add frontend image to cluster
 add-frontend-image:
@@ -48,7 +49,11 @@ add-frontend-image:
 # Add backend image to cluster
 add-backend-image:
     k3d image import ft-lgtm-backend:local -c ft-lgtm
-
+    
+# Add dependency imagers like grafana lgtm image
+add-dependency-images:
+    k3d image import grafana/otel-lgtm:0.30.0 -c ft-lgtm || echo "Warning: failed to import grafana/otel-lgtm:0.30.0"
+    
 # Apply all k8s manifests (deployments, services, ingress)
 apply-manifests:
     kubectl apply -f k8s/ -R

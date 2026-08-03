@@ -82,16 +82,11 @@
 
 	async function fetchImportedCid() {
 		if (!importCid.trim()) return;
-		const response = await fetch(`/ipfs/${importCid}`);
-
-		if (!response.ok) {
-			throw new Error(`Fetch failed: ${response.status}`);
-		}
-
+		
 		try {
 			const [srcResponse, resultResponse] = await Promise.all([
-				fetch(`/ipfs/${importCid}/src`),
-				fetch(`/ipfs/${importCid}/run_result.json`)
+				fetch(`http://ipfs.lgtm.local:11002/ipfs/${importCid}/main.rs`),
+				fetch(`http://ipfs.lgtm.local:11002/ipfs/${importCid}/run_result.json`)
 			]);
 
 			if (!srcResponse.ok) {
@@ -108,6 +103,7 @@
 			stdout = fetchedRunResult.execution_result?.stdout ?? '';
 			stderr = fetchedRunResult.execution_result?.stderr ?? '';
 			compileStatus = fetchedRunResult.compile_result?.status ?? 0;
+			shareOpen = false;
 		} catch (err) {
 			console.error('failed to fetch imported CID:', err);
 		}
