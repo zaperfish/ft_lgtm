@@ -31,3 +31,13 @@ spec:
             name: ft-lgtm-ipfs-node
             port:
               name: gateway
+  - host: grafana.lgtm.local
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: ft-lgtm-observability
+            port:
+              name: grafana
