@@ -1,10 +1,10 @@
 *This project has been created as part of the 42 curriculum by zaperfish*
 
-# FT-LGTM
+# ft_lgtm
 
 ## Description
 
-LGTM is an observability-focused platform combining Kubernetes, WebAssembly,
+ft_lgtm is an observability-focused platform combining Kubernetes, WebAssembly,
 IPFS, and the LGTM observability stack (Loki, Grafana, Tempo, Mimir/Prometheus).
 
 The goal of this project is to build a secure web playground where users can
