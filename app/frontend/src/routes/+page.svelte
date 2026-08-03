@@ -7,7 +7,7 @@
 	import { Spinner } from 'flowbite-svelte';
 	import { Play } from 'lucide-svelte';
 	import { AlertCircle } from 'lucide-svelte';
-	import { Copy, Share2 } from 'lucide-svelte';
+	import { CloudDownload, Info, Copy, Share2 } from 'lucide-svelte';
 	import { DropdownItem, Dropdown, DropdownDivider } from 'flowbite-svelte';
 	import { browser } from '$app/environment';
 
@@ -18,6 +18,7 @@
 	let stdout = $state('');
 	let stderr = $state('');
 
+	let importCid = $state('');
 	let leftWidth = $state(60);
 	let container: HTMLDivElement;
 	let dragging = $state(false);
@@ -76,6 +77,39 @@
 			console.error(err);
 		} finally {
 			isRunning = false;
+		}
+	}
+
+	async function fetchImportedCid() {
+		if (!importCid.trim()) return;
+		const response = await fetch(`/ipfs/${importCid}`);
+
+		if (!response.ok) {
+			throw new Error(`Fetch failed: ${response.status}`);
+		}
+
+		try {
+			const [srcResponse, resultResponse] = await Promise.all([
+				fetch(`/ipfs/${importCid}/src`),
+				fetch(`/ipfs/${importCid}/run_result.json`)
+			]);
+
+			if (!srcResponse.ok) {
+				throw new Error(`Failed to fetch src: ${srcResponse.status}`);
+			}
+			if (!resultResponse.ok) {
+				throw new Error(`Failed to fetch run_result.json: ${resultResponse.status}`);
+			}
+
+			const fetchedSrc = await srcResponse.text();
+			const fetchedRunResult = await resultResponse.json();
+
+			src = fetchedSrc;
+			stdout = fetchedRunResult.execution_result?.stdout ?? '';
+			stderr = fetchedRunResult.execution_result?.stderr ?? '';
+			compileStatus = fetchedRunResult.compile_result?.status ?? 0;
+		} catch (err) {
+			console.error('failed to fetch imported CID:', err);
 		}
 	}
 
@@ -213,6 +247,20 @@
 
 				{#if shareOpen}
 					<div class="dropdown">
+						<div class="import-item">
+							<span class="import-text"> Import </span>
+							<input
+								type="text"
+								class="cid-input"
+								placeholder="Paste a CID…"
+								bind:value={importCid}
+								onkeydown={(e) => e.key === 'Enter' && fetchImportedCid()}
+							/>
+							<button class="fetch-btn" onclick={fetchImportedCid} aria-label="Fetch CID">
+								<CloudDownload size="14" />
+							</button>
+						</div>
+						<div class="dropdown-divider"></div>
 						{#each runList.slice().reverse().slice(0, 5) as entry}
 							<div class="dropdown-item">
 								<span class="dropdown-item-time">{formatTime(entry.time)}</span>
@@ -284,6 +332,7 @@
 		border: 0.5px solid #ddd;
 		border-radius: 12px;
 		overflow: visible;
+		width: 90%;
 		max-width: 1000px;
 		margin: 2rem auto;
 		font-family: system-ui, sans-serif;
@@ -292,17 +341,23 @@
 		position: relative;
 	}
 	.dropdown {
-		position: absolute;
-		top: calc(100% + 6px);
+		position: fixed;
+		top: 80px;
 		left: 50%;
 		transform: translateX(-50%);
 		background: #f5eee7;
 		border: 0.5px solid #ddd;
 		border-radius: 6px;
 		box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+		max-width: 90vw;
 		min-width: 160px;
 		padding: 4px;
 		z-index: 100;
+	}
+	.dropdown-divider {
+		height: 1px;
+		background: #e5ddd3;
+		margin: 4px 0;
 	}
 	.dropdown-item-time {
 		font-size: 9px;
@@ -488,6 +543,50 @@
 		color: #555;
 		margin: 0;
 		white-space: pre-wrap;
+	}
+	.import-item {
+		display: flex;
+		align-items: center;
+		gap: 8px;
+		padding: 6px 10px;
+	}
+	.import-text {
+		display: flex;
+		font-size: 13px;
+		align-items: center;
+		color: #999;
+	}
+
+	.cid-input {
+		flex: 1;
+		min-width: 0;
+		font-size: 11px;
+		padding: 6px 8px;
+		border: 0.5px solid #ddd;
+		border-radius: 6px;
+		background: #f7f7f6;
+		color: #999;
+	}
+
+	.cid-input:focus {
+		outline: none;
+		border-color: #999;
+	}
+
+	.fetch-btn {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		background: transparent;
+		border: none;
+		cursor: pointer;
+		color: #888;
+		padding: 4px;
+		flex-shrink: 0;
+	}
+
+	.fetch-btn:hover {
+		color: #333;
 	}
 	@media (max-width: 600px) {
 		.panes {

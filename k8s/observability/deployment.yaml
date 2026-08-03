@@ -1,0 +1,18 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ft-lgtm-observability
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ft-lgtm-observability
+  template:
+    metadata:
+      labels:
+        app: ft-lgtm-observability
+    spec:
+      containers:
+        - name: ft-lgtm-observability
+          image: grafana/otel-lgtm:latest
+          imagePullPolicy: IfNotPresent

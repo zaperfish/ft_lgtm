@@ -5,7 +5,6 @@ metadata:
 spec:
   selector:
     app: ft-lgtm-frontend
-
   ports:
     - port: 11001
       targetPort: 3000

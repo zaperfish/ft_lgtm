@@ -13,6 +13,13 @@ spec:
             name: ft-lgtm-backend
             port:
               number: 11000
+      - path: /ipfs
+        pathType: Prefix
+        backend:
+          service:
+            name: ft-lgtm-ipfs-node
+            port:
+              name: gateway
       - path: /
         pathType: Prefix
         backend:
