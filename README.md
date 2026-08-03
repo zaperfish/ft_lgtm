@@ -89,6 +89,12 @@ Deploy the complete stack:
 just deploy
 ```
 
+Add local DNS entries so that services are accessible through lgtm.local, grafana.lgtm.local and ipfs.lgtm.local:
+
+```bash
+just add-hosts
+```
+
 ## Usage
 
 ### Access the application

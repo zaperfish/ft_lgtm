@@ -64,3 +64,8 @@ restart-deployments:
     kubectl rollout restart deployment/ft-lgtm-backend
     kubectl rollout status deployment/ft-lgtm-frontend
     kubectl rollout status deployment/ft-lgtm-backend
+
+# Add local DNS entries so services are accessible through custom domains
+add-hosts:
+	@echo "Adding local domains..."
+	@echo "127.0.0.1 lgtm.local grafana.lgtm.local ipfs.lgtm.local" | sudo tee -a /etc/hosts > /dev/null
