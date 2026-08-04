@@ -36,7 +36,7 @@
 		isRunning = true;
 
 		try {
-			const response = await fetch('/api/code/run', {
+			const response = await fetch('/api/execute', {
 				method: 'POST',
 				headers: {
 					'Content-Type': 'application/json'
@@ -85,8 +85,8 @@
 		
 		try {
 			const [srcResponse, resultResponse] = await Promise.all([
-				fetch(`http://ipfs.lgtm.local:11002/ipfs/${importCid}/main.rs`),
-				fetch(`http://ipfs.lgtm.local:11002/ipfs/${importCid}/run_result.json`)
+				fetch(`http://ipfs.lgtm.local/ipfs/${importCid}/main.rs`),
+				fetch(`http://ipfs.lgtm.local/ipfs/${importCid}/run_result.json`)
 			]);
 
 			if (!srcResponse.ok) {

@@ -1,10 +1,13 @@
 use anyhow::Result;
 use serde::Serialize;
+use std::sync::LazyLock;
 use tracing::instrument;
 use wasmtime::component::{Component, Linker, ResourceTable};
 use wasmtime::*;
 use wasmtime_wasi::p2::bindings::Command;
 use wasmtime_wasi::{WasiCtx, WasiCtxView, WasiView};
+
+static ENGINE: LazyLock<Engine> = LazyLock::new(|| Engine::default());
 
 #[derive(Debug, Serialize)]
 pub struct ExecutionResult {
@@ -20,9 +23,7 @@ struct ComponentRunStates {
 
 #[instrument(skip_all)]
 pub async fn execute_wasm(bin: &[u8]) -> Result<ExecutionResult> {
-    let engine = Engine::default();
-
-    let mut linker = Linker::new(&engine);
+    let mut linker = Linker::new(&ENGINE);
     wasmtime_wasi::p2::add_to_linker_async(&mut linker)?;
 
     let stdout_pipe = wasmtime_wasi::p2::pipe::MemoryOutputPipe::new(10 * 1024);
@@ -41,9 +42,9 @@ pub async fn execute_wasm(bin: &[u8]) -> Result<ExecutionResult> {
         resource_table: ResourceTable::new(),
     };
 
-    let mut store = Store::new(&engine, state);
+    let mut store = Store::new(&ENGINE, state);
 
-    let component = Component::from_binary(&engine, bin)?;
+    let component = Component::from_binary(&ENGINE, bin)?;
     let command = Command::instantiate_async(&mut store, &component, &linker).await?;
     let program_result = command.wasi_cli_run().call_run(&mut store).await?;
 

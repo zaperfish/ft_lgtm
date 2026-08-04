@@ -1,5 +1,8 @@
+use anyhow::Result;
 use opentelemetry::global;
 use opentelemetry::metrics::{Counter, Histogram};
+use opentelemetry_otlp::WithExportConfig;
+use opentelemetry_sdk::Resource;
 use opentelemetry_sdk::metrics::SdkMeterProvider;
 use std::time::Instant;
 
@@ -60,11 +63,17 @@ impl Drop for MetricsGuard<'_> {
     }
 }
 
-pub fn init_metrics() {
-    let meter_exporter = opentelemetry_stdout::MetricExporter::default();
+pub fn init_metrics(resource: &Resource, endpoint: &str) -> Result<()> {
+    let otlp_exporter = opentelemetry_otlp::MetricExporter::builder()
+        .with_tonic()
+        .with_endpoint(endpoint)
+        .build()?;
+
     let meter_provider = SdkMeterProvider::builder()
-        .with_periodic_exporter(meter_exporter)
+        .with_resource(resource.clone())
+        .with_periodic_exporter(otlp_exporter)
         .build();
 
     global::set_meter_provider(meter_provider);
+    Ok(())
 }

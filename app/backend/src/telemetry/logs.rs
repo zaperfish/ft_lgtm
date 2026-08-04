@@ -1,10 +1,17 @@
-use opentelemetry_sdk::logs::SdkLoggerProvider;
+use anyhow::Result;
+use opentelemetry_otlp::WithExportConfig;
+use opentelemetry_sdk::{Resource, logs::SdkLoggerProvider};
 
-pub fn init_logs() -> SdkLoggerProvider {
-    let log_exporter = opentelemetry_stdout::LogExporter::default();
+pub fn init_logs(resource: &Resource, endpoint: &str) -> Result<SdkLoggerProvider> {
+    let otlp_exporter = opentelemetry_otlp::LogExporter::builder()
+        .with_tonic()
+        .with_endpoint(endpoint)
+        .build()?;
+
     let log_provider = SdkLoggerProvider::builder()
-        .with_simple_exporter(log_exporter)
+        .with_resource(resource.clone())
+        .with_batch_exporter(otlp_exporter)
         .build();
 
-    log_provider
+    Ok(log_provider)
 }
