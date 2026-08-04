@@ -1,4 +1,6 @@
 pub mod api;
-mod compiler;
-mod executor;
+pub mod app;
+pub mod telemetry;
+
 mod ipfs;
+mod wasm;

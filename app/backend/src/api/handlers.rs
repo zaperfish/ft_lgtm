@@ -1,10 +1,10 @@
-use salvo::cors::Cors;
-use salvo::http::Method;
+use opentelemetry::KeyValue;
 use tracing::error;
 
-use crate::compiler::{CompileResult, compile_to_wasm};
-use crate::executor::{ExecutionResult, execute_wasm};
+use crate::app::AppState;
 use crate::ipfs;
+use crate::wasm::compiler::{CompileResult, compile_to_wasm};
+use crate::wasm::executor::{ExecutionResult, execute_wasm};
 
 use anyhow::Result;
 use salvo::prelude::*;
@@ -29,30 +29,17 @@ pub struct RunResponse {
     cid: Option<String>,
 }
 
-pub async fn run_app() {
-    let host = std::env::var("HOST").unwrap_or_else(|_| "127.0.0.1".to_string());
-    let port = std::env::var("PORT").unwrap_or_else(|_| "11000".to_string());
-
-    let cors = Cors::new()
-        .allow_origin(["http://localhost:5173", "http://127.0.0.1:5173"])
-        .allow_methods(vec![Method::POST])
-        .allow_headers(vec!["content-type"])
-        .into_handler();
-
-    let router = Router::with_path("api").push(run_router());
-    let service = Service::new(router).hoop(cors);
-
-    let acceptor = TcpListener::new(format!("{host}:{port}")).bind().await;
-    Server::new(acceptor).serve(service).await;
-}
-
-fn run_router() -> Router {
-    Router::with_path("code/run").post(run_handler)
-}
-
 #[instrument(skip(req))]
 #[handler]
-async fn run_handler(req: &mut Request) -> Result<Json<RunResponse>, StatusError> {
+pub async fn execute_handler(
+    depot: &mut Depot,
+    req: &mut Request,
+) -> Result<Json<RunResponse>, StatusError> {
+    let state = depot.get_typed_mut::<AppState>().unwrap();
+    let metrics = &state.metrics;
+
+    metrics.executions_total.add(1, &[]);
+
     let body: CodeSubmission = req
         .parse_body()
         .await
@@ -80,6 +67,8 @@ async fn run_handler(req: &mut Request) -> Result<Json<RunResponse>, StatusError
             None
         }
     };
+
+    metrics.executions_succeeded.add(1, &[]);
 
     Ok(Json(RunResponse { run_result, cid }))
 }
