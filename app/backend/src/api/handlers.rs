@@ -1,8 +1,8 @@
-use opentelemetry::KeyValue;
 use tracing::error;
 
 use crate::app::AppState;
 use crate::ipfs;
+use crate::telemetry::metrics::MetricsGuard;
 use crate::wasm::compiler::{CompileResult, compile_to_wasm};
 use crate::wasm::executor::{ExecutionResult, execute_wasm};
 
@@ -37,24 +37,47 @@ pub async fn execute_handler(
 ) -> Result<Json<RunResponse>, StatusError> {
     let state = depot.get_typed_mut::<AppState>().unwrap();
     let metrics = &state.metrics;
+    let mut metrics_guard = MetricsGuard::new(&metrics);
 
-    metrics.executions_total.add(1, &[]);
-
-    let body: CodeSubmission = req
+    let submission: CodeSubmission = req
         .parse_body()
         .await
         .map_err(|err| StatusError::bad_request().brief(err.to_string()))?;
 
-    if body.language != "rust" {
+    if submission.language != "rust" {
         return Err(StatusError::bad_request().brief("unsupported language"));
     }
 
-    let src = body.src;
-    let (mut compile_result, execution_result) = compile_and_execute(&src)
+    let (mut run_result, cid) = execute(&submission.src)
         .await
-        .map_err(log_and_500("failed to compile_and_execute"))?;
+        .map_err(log_and_500("failed to execute"))?;
 
-    compile_result.bin = None;
+    // We do not want to ship the binary to the frontend
+    run_result.compile_result.bin = None;
+
+    if run_result.compile_result.status == 0
+        && run_result
+            .execution_result
+            .as_ref()
+            .is_some_and(|result| result.status == 0)
+    {
+        metrics_guard.success();
+    }
+
+    Ok(Json(RunResponse { run_result, cid }))
+}
+
+async fn execute(src: &str) -> Result<(RunResult, Option<String>)> {
+    let compile_result = compile_to_wasm(&src).map_err(log_and_500("failed to compile"))?;
+    let execution_result = match compile_result.status {
+        0 => Some(
+            execute_wasm(&compile_result.bin.as_deref().unwrap())
+                .await
+                .map_err(log_and_500("failed to execute wasm"))?,
+        ),
+        _ => None,
+    };
+
     let run_result = RunResult {
         compile_result,
         execution_result,
@@ -68,9 +91,7 @@ pub async fn execute_handler(
         }
     };
 
-    metrics.executions_succeeded.add(1, &[]);
-
-    Ok(Json(RunResponse { run_result, cid }))
+    Ok((run_result, cid))
 }
 
 fn log_and_500<E: std::fmt::Display>(context: &'static str) -> impl FnOnce(E) -> StatusError {
@@ -78,16 +99,4 @@ fn log_and_500<E: std::fmt::Display>(context: &'static str) -> impl FnOnce(E) ->
         error!(error = %err, "{context}");
         StatusError::internal_server_error()
     }
-}
-
-async fn compile_and_execute(src: &str) -> Result<(CompileResult, Option<ExecutionResult>)> {
-    let compile_result = compile_to_wasm(src)?;
-
-    if compile_result.status != 0 {
-        return Ok((compile_result, None));
-    }
-
-    let execution_result = execute_wasm(compile_result.bin.as_deref().unwrap()).await?;
-
-    Ok((compile_result, Some(execution_result)))
 }

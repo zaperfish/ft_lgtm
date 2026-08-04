@@ -1,6 +1,7 @@
 use opentelemetry::global;
 use opentelemetry::metrics::{Counter, Histogram};
 use opentelemetry_sdk::metrics::SdkMeterProvider;
+use std::time::Instant;
 
 #[derive(Debug, Clone)]
 pub struct Metrics {
@@ -19,6 +20,42 @@ impl Metrics {
             executions_succeeded: meter.u64_counter("executions_succeeded").build(),
             executions_failed: meter.u64_counter("executions_failed").build(),
             execution_durations: meter.f64_histogram("execution_durations_ms").build(),
+        }
+    }
+}
+
+pub struct MetricsGuard<'a> {
+    metrics: &'a Metrics,
+    start: Instant,
+    success: bool,
+}
+
+impl<'a> MetricsGuard<'a> {
+    pub fn new(metrics: &'a Metrics) -> Self {
+        Self {
+            metrics,
+            start: Instant::now(),
+            success: false,
+        }
+    }
+
+    pub fn success(self: &mut Self) {
+        self.success = true;
+    }
+}
+
+impl Drop for MetricsGuard<'_> {
+    fn drop(&mut self) {
+        let duration = self.start.elapsed().as_millis();
+        self.metrics.executions_total.add(1, &[]);
+
+        if self.success {
+            self.metrics.executions_succeeded.add(1, &[]);
+            self.metrics
+                .execution_durations
+                .record(duration as f64, &[]);
+        } else {
+            self.metrics.executions_failed.add(1, &[]);
         }
     }
 }
