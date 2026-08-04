@@ -11,7 +11,7 @@ pub struct CompileResult {
     pub bin: Option<Vec<u8>>,
 }
 
-#[instrument(skip(src))]
+#[instrument(skip_all)]
 pub fn compile_to_wasm(src: &str) -> Result<CompileResult> {
     let temp_dir = TempDir::new()?;
     let src_path = temp_dir.path().join("main.rs");

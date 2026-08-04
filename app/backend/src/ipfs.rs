@@ -2,6 +2,7 @@ use crate::api::handlers::RunResult;
 use anyhow::{Result, anyhow};
 use reqwest::multipart::Part;
 use serde::Deserialize;
+use tracing::instrument;
 
 #[derive(Debug, Deserialize)]
 struct IpfsItem {
@@ -9,6 +10,7 @@ struct IpfsItem {
     hash: String,
 }
 
+#[instrument(skip_all)]
 pub async fn publish(src: &str, run_result: &RunResult) -> Result<String> {
     const URL: &str = "http://ft-lgtm-ipfs-node:5001/api/v0/add?wrap-with-directory=true";
 

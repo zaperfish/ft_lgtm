@@ -18,7 +18,7 @@ struct ComponentRunStates {
     pub resource_table: ResourceTable,
 }
 
-#[instrument(skip(bin))]
+#[instrument(skip_all)]
 pub async fn execute_wasm(bin: &[u8]) -> Result<ExecutionResult> {
     let engine = Engine::default();
 

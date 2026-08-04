@@ -1,4 +1,4 @@
-use tracing::error;
+use tracing::{debug, error, info, warn};
 
 use crate::app::AppState;
 use crate::ipfs;
@@ -29,20 +29,24 @@ pub struct RunResponse {
     cid: Option<String>,
 }
 
-#[instrument(skip(req))]
+#[instrument(skip_all)]
 #[handler]
 pub async fn execute_handler(
     depot: &mut Depot,
     req: &mut Request,
 ) -> Result<Json<RunResponse>, StatusError> {
-    let state = depot.get_typed_mut::<AppState>().unwrap();
-    let metrics = &state.metrics;
-    let mut metrics_guard = MetricsGuard::new(&metrics);
+    let state = depot.get_typed::<AppState>().unwrap();
+    let mut metrics_guard = MetricsGuard::new(&state.metrics);
 
     let submission: CodeSubmission = req
         .parse_body()
         .await
         .map_err(|err| StatusError::bad_request().brief(err.to_string()))?;
+
+    info!(
+        source_size = submission.src.len(),
+        "received code execute request"
+    );
 
     if submission.language != "rust" {
         return Err(StatusError::bad_request().brief("unsupported language"));
@@ -52,17 +56,14 @@ pub async fn execute_handler(
         .await
         .map_err(log_and_500("failed to execute"))?;
 
-    // We do not want to ship the binary to the frontend
-    run_result.compile_result.bin = None;
-
-    if run_result.compile_result.status == 0
-        && run_result
-            .execution_result
-            .as_ref()
-            .is_some_and(|result| result.status == 0)
-    {
+    if run_result.succeeded() {
+        info!(cid = ?cid, "code execution completed successfully");
         metrics_guard.success();
+    } else {
+        info!("code execution failed");
     }
+
+    run_result.compile_result.bin = None;
 
     Ok(Json(RunResponse { run_result, cid }))
 }
@@ -86,7 +87,7 @@ async fn execute(src: &str) -> Result<(RunResult, Option<String>)> {
     let cid = match ipfs::publish(&src, &run_result).await {
         Ok(cid) => Some(cid),
         Err(err) => {
-            error!(error = %err, "failed to publish to ipfs");
+            warn!(error = %err, "failed to publish result to ipfs");
             None
         }
     };
@@ -98,5 +99,15 @@ fn log_and_500<E: std::fmt::Display>(context: &'static str) -> impl FnOnce(E) ->
     move |err| {
         error!(error = %err, "{context}");
         StatusError::internal_server_error()
+    }
+}
+
+impl RunResult {
+    pub fn succeeded(&self) -> bool {
+        self.compile_result.status == 0
+            && self
+                .execution_result
+                .as_ref()
+                .is_some_and(|result| result.status == 0)
     }
 }
