@@ -1,6 +1,6 @@
 use anyhow::Result;
-use opentelemetry::global;
 use opentelemetry::metrics::{Counter, Histogram};
+use opentelemetry::{KeyValue, global};
 use opentelemetry_otlp::WithExportConfig;
 use opentelemetry_sdk::Resource;
 use opentelemetry_sdk::metrics::SdkMeterProvider;
@@ -51,12 +51,12 @@ impl Drop for MetricsGuard<'_> {
     fn drop(&mut self) {
         let duration = self.start.elapsed().as_millis();
         self.metrics.executions_total.add(1, &[]);
+        self.metrics
+            .execution_durations
+            .record(duration as f64, &[KeyValue::new("success", self.success)]);
 
         if self.success {
             self.metrics.executions_succeeded.add(1, &[]);
-            self.metrics
-                .execution_durations
-                .record(duration as f64, &[]);
         } else {
             self.metrics.executions_failed.add(1, &[]);
         }
