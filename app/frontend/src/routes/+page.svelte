@@ -60,6 +60,12 @@
 				dotColor = '#ef4444';
 				stdout = result.run_result?.compile_result?.stdout ?? '';
 				stderr = result.run_result?.compile_result?.stderr ?? '';
+				if (result.cid) {
+					ipfsStatus = true;
+					addRun(result.cid);
+				} else {
+					ipfsStatus = false;
+				}
 			} else {
 				dotColor = '#22c55e';
 				stdout = result.run_result?.execution_result?.stdout ?? '';
