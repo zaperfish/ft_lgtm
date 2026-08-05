@@ -1,6 +1,5 @@
 pub mod app;
 pub mod handlers;
+pub mod ipfs;
 pub mod telemetry;
-
-mod ipfs;
-mod wasm;
+pub mod wasm;

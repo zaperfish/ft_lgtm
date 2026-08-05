@@ -5,9 +5,13 @@ use tracing::instrument;
 use wasmtime::component::{Component, Linker, ResourceTable};
 use wasmtime::*;
 use wasmtime_wasi::p2::bindings::Command;
-use wasmtime_wasi::{WasiCtx, WasiCtxView, WasiView};
+use wasmtime_wasi::{I32Exit, WasiCtx, WasiCtxView, WasiView};
 
-static ENGINE: LazyLock<Engine> = LazyLock::new(|| Engine::default());
+static ENGINE: LazyLock<Engine> = LazyLock::new(|| {
+    let mut config = Config::new();
+    config.consume_fuel(true);
+    Engine::new(&config).unwrap()
+});
 
 #[derive(Debug, Serialize)]
 pub struct ExecutionResult {
@@ -19,6 +23,7 @@ pub struct ExecutionResult {
 struct ComponentRunStates {
     pub wasi_ctx: WasiCtx,
     pub resource_table: ResourceTable,
+    pub limits: StoreLimits,
 }
 
 #[instrument(skip_all)]
@@ -40,17 +45,27 @@ pub async fn execute_wasm(bin: &[u8]) -> Result<ExecutionResult> {
     let state = ComponentRunStates {
         wasi_ctx: wasi,
         resource_table: ResourceTable::new(),
+        limits: StoreLimitsBuilder::new()
+            .memory_size(1024 * 1024 * 5)
+            .build(),
     };
 
     let mut store = Store::new(&ENGINE, state);
+    store.limiter(|state| &mut state.limits);
+    store.set_fuel(1_000_000)?;
 
     let component = Component::from_binary(&ENGINE, bin)?;
     let command = Command::instantiate_async(&mut store, &component, &linker).await?;
-    let program_result = command.wasi_cli_run().call_run(&mut store).await?;
-
-    let status = match program_result {
-        Ok(()) => 0,
-        Err(()) => 1,
+    let status = match command.wasi_cli_run().call_run(&mut store).await {
+        Ok(Ok(())) => 0,
+        Ok(Err(())) => 1,
+        Err(e) => {
+            if let Some(exit) = e.downcast_ref::<I32Exit>() {
+                if exit.0 == 0 { 0 } else { exit.0 }
+            } else {
+                1
+            }
+        }
     };
 
     let stdout = String::from_utf8_lossy(&stdout_capture.contents()).into_owned();
