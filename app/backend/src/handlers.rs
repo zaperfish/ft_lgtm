@@ -1,4 +1,4 @@
-use tracing::{debug, error, info, warn};
+use tracing::{Span, error, field, info, warn};
 
 use crate::app::AppState;
 use crate::ipfs;
@@ -29,7 +29,7 @@ pub struct RunResponse {
     cid: Option<String>,
 }
 
-#[instrument(skip_all)]
+#[instrument(skip_all, fields(cid = field::Empty))]
 #[handler]
 pub async fn execute_handler(
     depot: &mut Depot,
@@ -55,6 +55,10 @@ pub async fn execute_handler(
     let (mut run_result, cid) = execute(&submission.src)
         .await
         .map_err(log_and_500("failed to execute"))?;
+
+    if cid.is_some() {
+        Span::current().record("cid", &tracing::field::display(cid.as_deref().unwrap()));
+    }
 
     if run_result.succeeded() {
         info!(cid = ?cid, "code execution completed successfully");
