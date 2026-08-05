@@ -12,20 +12,23 @@ pub struct CompileResult {
 }
 
 #[instrument(skip_all)]
-pub fn compile_to_wasm(src: &str) -> Result<CompileResult> {
+pub async fn compile_to_wasm(src: &str) -> Result<CompileResult> {
     let temp_dir = TempDir::new()?;
     let src_path = temp_dir.path().join("main.rs");
     let out_path = temp_dir.path().join("out.wasm");
 
     std::fs::write(&src_path, src).context("failed to write source code to file")?;
 
-    let output = std::process::Command::new("rustc")
+    let output = tokio::process::Command::new("timeout")
+        .arg("5s")
+        .arg("rustc")
         .arg("--target")
         .arg("wasm32-wasip2")
         .arg(&src_path)
         .arg("-o")
         .arg(&out_path)
-        .output()?;
+        .output()
+        .await?;
 
     let bin = if output.status.success() {
         Some(std::fs::read(out_path).context("failed to read wasm binary file")?)

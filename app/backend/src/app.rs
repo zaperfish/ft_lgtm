@@ -1,3 +1,5 @@
+use std::time::Duration;
+
 use crate::handlers::execute_handler;
 use salvo::affix_state::inject;
 use salvo::prelude::*;
@@ -18,10 +20,11 @@ pub async fn run() {
     };
 
     let router = Router::with_path("api")
+        .hoop(Timeout::new(Duration::from_secs(5)))
         .hoop(inject(state))
         .push(Router::with_path("execute").post(execute_handler));
-    let service = Service::new(router);
 
+    let service = Service::new(router);
     let acceptor = TcpListener::new(format!("{host}:{port}")).bind().await;
     Server::new(acceptor).serve(service).await;
 }

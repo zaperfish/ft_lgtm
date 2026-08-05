@@ -2,7 +2,7 @@ use backend::wasm::compiler::compile_to_wasm;
 use backend::wasm::executor::execute_wasm;
 
 async fn compile_and_execute(source: &str) -> backend::wasm::executor::ExecutionResult {
-    let compile_result = compile_to_wasm(source).unwrap();
+    let compile_result = compile_to_wasm(source).await.unwrap();
 
     assert_eq!(
         compile_result.status, 0,

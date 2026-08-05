@@ -69,7 +69,9 @@ pub async fn execute_handler(
 }
 
 async fn execute(src: &str) -> Result<(RunResult, Option<String>)> {
-    let compile_result = compile_to_wasm(&src).map_err(log_and_500("failed to compile"))?;
+    let compile_result = compile_to_wasm(&src)
+        .await
+        .map_err(log_and_500("failed to compile"))?;
     let execution_result = match compile_result.status {
         0 => Some(
             execute_wasm(&compile_result.bin.as_deref().unwrap())

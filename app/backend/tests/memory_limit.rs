@@ -16,7 +16,7 @@ async fn memory_limit_exceeded() {
         }
     "#;
 
-    let compile_result = compile_to_wasm(source).unwrap();
+    let compile_result = compile_to_wasm(source).await.unwrap();
 
     assert_eq!(
         compile_result.status, 0,

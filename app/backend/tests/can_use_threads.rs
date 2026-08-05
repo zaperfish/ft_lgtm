@@ -10,7 +10,7 @@ async fn no_network_access() {
         }
     "#;
 
-    let compile_result = compile_to_wasm(source).unwrap();
+    let compile_result = compile_to_wasm(source).await.unwrap();
     assert_eq!(compile_result.status, 0);
 
     let result = execute_wasm(&compile_result.bin.unwrap()).await.unwrap();
