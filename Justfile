@@ -27,6 +27,7 @@ build-and-add:
 build-images:
     just build-frontend-image
     just build-backend-image
+    just build-observability-image
 
 # Build frontend image
 build-frontend-image:
@@ -36,11 +37,15 @@ build-frontend-image:
 build-backend-image:
     docker build -t ft-lgtm-backend:local ./app/backend
 
+# Build observability image
+build-observability-image:
+    docker build -t ft-lgtm-observability:local ./docker/observability
+
 # Add docker images to the k8s cluster
 add-images:
     just add-frontend-image
     just add-backend-image
-    just add-dependency-images
+    just add-observability-image
 
 # Add frontend image to cluster
 add-frontend-image:
@@ -49,14 +54,14 @@ add-frontend-image:
 # Add backend image to cluster
 add-backend-image:
     k3d image import ft-lgtm-backend:local -c ft-lgtm
-    
-# Add dependency imagers like grafana lgtm image
-add-dependency-images:
-    k3d image import grafana/otel-lgtm:0.30.0 -c ft-lgtm || echo "Warning: failed to import grafana/otel-lgtm:0.30.0"
-    
+
+# Add observability image to cluster
+add-observability-image:
+    k3d image import ft-lgtm-observability:local -c ft-lgtm
+  
 # Apply all k8s manifests (deployments, services, ingress)
 apply-manifests:
-    kubectl apply -f k8s/ -R
+    find k8s -name "*.yaml" -print0 | xargs -0 -I {} kubectl apply -f {}
 
 # Restart deployments so they pick up freshly imported images
 restart-deployments:
