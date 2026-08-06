@@ -1,4 +1,4 @@
-use backend::wasm::compiler::compile_to_wasm;
+use backend::wasm::compiler::compile;
 
 #[tokio::test]
 async fn long_compile_timeout() {
@@ -18,7 +18,7 @@ async fn long_compile_timeout() {
         fn main() {}
     "#;
 
-    let compile_result = compile_to_wasm(source).await.unwrap();
+    let compile_result = compile(source).await.unwrap();
 
     assert_ne!(
         compile_result.status, 0,

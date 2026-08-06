@@ -1,8 +1,8 @@
-use backend::wasm::compiler::compile_to_wasm;
-use backend::wasm::executor::execute_wasm;
+use backend::wasm::compiler::compile;
+use backend::wasm::executor::execute;
 
 async fn compile_and_execute(source: &str) -> backend::wasm::executor::ExecutionResult {
-    let compile_result = compile_to_wasm(source).await.unwrap();
+    let compile_result = compile(source).await.unwrap();
 
     assert_eq!(
         compile_result.status, 0,
@@ -10,7 +10,7 @@ async fn compile_and_execute(source: &str) -> backend::wasm::executor::Execution
         compile_result.stderr
     );
 
-    execute_wasm(compile_result.bin.as_deref().unwrap())
+    execute(compile_result.bin.as_deref().unwrap())
         .await
         .unwrap()
 }

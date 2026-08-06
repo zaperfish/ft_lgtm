@@ -1,10 +1,11 @@
 use tracing::{Span, error, field, info, warn};
 
 use crate::app::AppState;
-use crate::ipfs;
+use crate::ipfs::Cid;
 use crate::telemetry::metrics::MetricsGuard;
-use crate::wasm::compiler::{CompileResult, compile_to_wasm};
-use crate::wasm::executor::{ExecutionResult, execute_wasm};
+use crate::wasm::engine::WasmEngine;
+use crate::wasm::runner::{RunResult, run};
+use crate::{ipfs, wasm};
 
 use anyhow::Result;
 use salvo::prelude::*;
@@ -18,15 +19,9 @@ struct CodeSubmission {
 }
 
 #[derive(Debug, Serialize)]
-pub struct RunResult {
-    compile_result: CompileResult,
-    execution_result: Option<ExecutionResult>,
-}
-
-#[derive(Debug, Serialize)]
 pub struct RunResponse {
     run_result: RunResult,
-    cid: Option<String>,
+    cid: Option<Cid>,
 }
 
 #[instrument(skip_all, fields(cid = field::Empty))]
@@ -52,12 +47,23 @@ pub async fn execute_handler(
         return Err(StatusError::bad_request().brief("unsupported language"));
     }
 
-    let (run_result, cid) = execute(&submission.src)
+    let wasm_engine = WasmEngine::default();
+    let run_result = wasm::runner::run(&submission.src, &wasm_engine)
         .await
-        .map_err(log_and_500("failed to execute"))?;
+        .map_err(log_and_500("failed to run src code"))?;
+
+    let cid = match ipfs::publish(&submission.src, &run_result).await {
+        Ok(cid) => Some(cid),
+        Err(err) => {
+            warn!(error = %err, "failed to publish to ipfs");
+            None
+        }
+    };
 
     if cid.is_some() {
-        Span::current().record("cid", &tracing::field::display(cid.as_deref().unwrap()));
+        if let Some(cid) = cid.as_ref() {
+            Span::current().record("cid", &tracing::field::debug(cid));
+        }
     }
 
     if run_result.succeeded() {
@@ -70,49 +76,9 @@ pub async fn execute_handler(
     Ok(Json(RunResponse { run_result, cid }))
 }
 
-async fn execute(src: &str) -> Result<(RunResult, Option<String>)> {
-    let compile_result = compile_to_wasm(&src)
-        .await
-        .map_err(log_and_500("failed to compile"))?;
-    let execution_result = match compile_result.status {
-        0 => Some(
-            execute_wasm(&compile_result.bin.as_deref().unwrap())
-                .await
-                .map_err(log_and_500("failed to execute wasm"))?,
-        ),
-        _ => None,
-    };
-
-    let mut run_result = RunResult {
-        compile_result,
-        execution_result,
-    };
-
-    run_result.compile_result.bin = None;
-    let cid = match ipfs::publish(&src, &run_result).await {
-        Ok(cid) => Some(cid),
-        Err(err) => {
-            warn!(error = %err, "failed to publish result to ipfs");
-            None
-        }
-    };
-
-    Ok((run_result, cid))
-}
-
 fn log_and_500<E: std::fmt::Display>(context: &'static str) -> impl FnOnce(E) -> StatusError {
     move |err| {
         error!(error = %err, "{context}");
         StatusError::internal_server_error()
-    }
-}
-
-impl RunResult {
-    pub fn succeeded(&self) -> bool {
-        self.compile_result.status == 0
-            && self
-                .execution_result
-                .as_ref()
-                .is_some_and(|result| result.status == 0)
     }
 }

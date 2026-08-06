@@ -1,5 +1,5 @@
-use backend::wasm::compiler::compile_to_wasm;
-use backend::wasm::executor::execute_wasm;
+use backend::wasm::compiler::compile;
+use backend::wasm::executor::execute;
 
 #[tokio::test]
 async fn execution_time_limit() {
@@ -11,7 +11,7 @@ async fn execution_time_limit() {
         }
     "#;
 
-    let compile_result = compile_to_wasm(source).await.unwrap();
+    let compile_result = compile(source).await.unwrap();
 
     assert_eq!(
         compile_result.status, 0,
@@ -19,7 +19,7 @@ async fn execution_time_limit() {
         compile_result.stderr
     );
 
-    let result = execute_wasm(compile_result.bin.as_deref().unwrap()).await;
+    let result = execute(compile_result.bin.as_deref().unwrap()).await;
 
     dbg!(&result);
 

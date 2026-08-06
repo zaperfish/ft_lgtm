@@ -1,5 +1,5 @@
-use backend::wasm::compiler::compile_to_wasm;
-use backend::wasm::executor::execute_wasm;
+use backend::wasm::compiler::compile;
+use backend::wasm::executor::execute;
 
 #[tokio::test]
 async fn no_network_access() {
@@ -10,9 +10,9 @@ async fn no_network_access() {
         }
     "#;
 
-    let compile_result = compile_to_wasm(source).await.unwrap();
+    let compile_result = compile(source).await.unwrap();
     assert_eq!(compile_result.status, 0);
 
-    let result = execute_wasm(&compile_result.bin.unwrap()).await.unwrap();
+    let result = execute(&compile_result.bin.unwrap()).await.unwrap();
     assert_eq!(result.status, 0);
 }

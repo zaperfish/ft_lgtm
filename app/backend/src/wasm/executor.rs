@@ -1,21 +1,15 @@
+use crate::wasm::engine::WasmEngine;
 use anyhow::Result;
 use serde::Serialize;
-use std::sync::LazyLock;
 use tracing::instrument;
 use wasmtime::component::{Component, Linker, ResourceTable};
 use wasmtime::*;
 use wasmtime_wasi::p2::bindings::Command;
 use wasmtime_wasi::{I32Exit, WasiCtx, WasiCtxView, WasiView};
 
-static ENGINE: LazyLock<Engine> = LazyLock::new(|| {
-    let mut config = Config::new();
-    config.consume_fuel(true);
-    Engine::new(&config).unwrap()
-});
-
 #[derive(Debug, Serialize)]
 pub struct ExecutionResult {
-    pub status: i32,
+    pub status: Result<(), ExecutionError>,
     pub stdout: String,
     pub stderr: String,
 }
@@ -26,13 +20,22 @@ struct ComponentRunStates {
     pub limits: StoreLimits,
 }
 
+#[derive(Debug, Serialize)]
+pub enum ExecutionError {
+    Exit(i32),
+    Trap(String),
+}
+
 #[instrument(skip_all)]
-pub async fn execute_wasm(bin: &[u8]) -> Result<ExecutionResult> {
-    let mut linker = Linker::new(&ENGINE);
+pub async fn execute(bin: &[u8], wasm_engine: &WasmEngine) -> Result<ExecutionResult> {
+    let engine = wasm_engine.wasmtime();
+    let mut linker = Linker::new(engine);
     wasmtime_wasi::p2::add_to_linker_async(&mut linker)?;
 
-    let stdout_pipe = wasmtime_wasi::p2::pipe::MemoryOutputPipe::new(10 * 1024);
-    let stderr_pipe = wasmtime_wasi::p2::pipe::MemoryOutputPipe::new(10 * 1024);
+    let config = wasm_engine.config();
+
+    let stdout_pipe = wasmtime_wasi::p2::pipe::MemoryOutputPipe::new(config.stdout_limit);
+    let stderr_pipe = wasmtime_wasi::p2::pipe::MemoryOutputPipe::new(config.stderr_limit);
 
     let stdout_capture = stdout_pipe.clone();
     let stderr_capture = stderr_pipe.clone();
@@ -46,24 +49,35 @@ pub async fn execute_wasm(bin: &[u8]) -> Result<ExecutionResult> {
         wasi_ctx: wasi,
         resource_table: ResourceTable::new(),
         limits: StoreLimitsBuilder::new()
-            .memory_size(1024 * 1024 * 5)
+            .memory_size(config.memory_limit)
             .build(),
     };
 
-    let mut store = Store::new(&ENGINE, state);
-    store.limiter(|state| &mut state.limits);
-    store.set_fuel(1_000_000)?;
+    let mut store = Store::new(engine, state);
 
-    let component = Component::from_binary(&ENGINE, bin)?;
+    store.limiter(|state| &mut state.limits);
+
+    if let Some(fuel) = config.fuel_limit {
+        store.set_fuel(fuel)?;
+    }
+
+    if let Some(deadline) = config.epoch_deadline {
+        store.set_epoch_deadline(deadline);
+    }
+
+    let component = Component::from_binary(engine, bin)?;
     let command = Command::instantiate_async(&mut store, &component, &linker).await?;
+
     let status = match command.wasi_cli_run().call_run(&mut store).await {
-        Ok(Ok(())) => 0,
-        Ok(Err(())) => 1,
-        Err(e) => {
-            if let Some(exit) = e.downcast_ref::<I32Exit>() {
-                if exit.0 == 0 { 0 } else { exit.0 }
+        Ok(Ok(())) => Ok(()),
+        Ok(Err(())) => Err(ExecutionError::Exit(1)),
+        Err(err) => {
+            if let Some(exit) = err.downcast_ref::<I32Exit>() {
+                Err(ExecutionError::Exit(exit.0))
+            } else if let Some(trap) = err.downcast_ref::<Trap>() {
+                Err(ExecutionError::Trap(trap.to_string()))
             } else {
-                1
+                Err(ExecutionError::Exit(1))
             }
         }
     };

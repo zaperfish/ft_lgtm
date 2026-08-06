@@ -1,8 +1,11 @@
-use crate::handlers::RunResult;
+use crate::wasm::runner::RunResult;
 use anyhow::{Result, anyhow};
 use reqwest::multipart::Part;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use tracing::instrument;
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Cid(String);
 
 #[derive(Debug, Deserialize)]
 struct IpfsItem {
@@ -11,7 +14,7 @@ struct IpfsItem {
 }
 
 #[instrument(skip_all)]
-pub async fn publish(src: &str, run_result: &RunResult) -> Result<String> {
+pub async fn publish(src: &str, run_result: &RunResult) -> Result<Cid> {
     const URL: &str = "http://ft-lgtm-ipfs-node:5001/api/v0/add?wrap-with-directory=true";
 
     let src_part = Part::text(src.to_string())
@@ -39,5 +42,5 @@ pub async fn publish(src: &str, run_result: &RunResult) -> Result<String> {
         .ok_or_else(|| anyhow!("no IPFS response"))?
         .hash;
 
-    Ok(cid)
+    Ok(Cid(cid))
 }

@@ -13,7 +13,7 @@ pub struct CompileResult {
 }
 
 #[instrument(skip_all)]
-pub async fn compile_to_wasm(src: &str) -> Result<CompileResult> {
+pub async fn compile(src: &str) -> Result<CompileResult> {
     let temp_dir = TempDir::new()?;
     let src_path = temp_dir.path().join("main.rs");
     let out_path = temp_dir.path().join("out.wasm");
