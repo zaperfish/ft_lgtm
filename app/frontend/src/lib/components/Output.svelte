@@ -83,6 +83,7 @@
 		color: #555;
 		margin: 0;
 		white-space: pre-wrap;
+		overflow-wrap: break-word;
 		overflow-wrap: anywhere;
 	}
 </style>
