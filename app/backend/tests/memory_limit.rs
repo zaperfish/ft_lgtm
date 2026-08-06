@@ -1,4 +1,5 @@
 use backend::wasm::compiler::compile;
+use backend::wasm::engine::WasmEngine;
 use backend::wasm::executor::execute;
 
 #[tokio::test]
@@ -24,12 +25,16 @@ async fn memory_limit_exceeded() {
         compile_result.stderr
     );
 
-    let execution_result = execute(compile_result.bin.as_deref().unwrap()).await;
+    let execution_result = execute(
+        compile_result.bin.as_deref().unwrap(),
+        &WasmEngine::default(),
+    )
+    .await;
 
     dbg!(&execution_result);
 
     assert!(
-        execution_result.unwrap().status == 1,
+        execution_result.unwrap().status.is_err(),
         "expected memory limit to be exceeded"
     );
 }

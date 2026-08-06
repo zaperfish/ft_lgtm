@@ -1,4 +1,5 @@
 use backend::wasm::compiler::compile;
+use backend::wasm::engine::WasmEngine;
 use backend::wasm::executor::execute;
 
 async fn compile_and_execute(source: &str) -> backend::wasm::executor::ExecutionResult {
@@ -10,9 +11,12 @@ async fn compile_and_execute(source: &str) -> backend::wasm::executor::Execution
         compile_result.stderr
     );
 
-    execute(compile_result.bin.as_deref().unwrap())
-        .await
-        .unwrap()
+    execute(
+        compile_result.bin.as_deref().unwrap(),
+        &WasmEngine::default(),
+    )
+    .await
+    .unwrap()
 }
 
 #[tokio::test]

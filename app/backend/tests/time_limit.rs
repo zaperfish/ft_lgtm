@@ -1,4 +1,5 @@
 use backend::wasm::compiler::compile;
+use backend::wasm::engine::WasmEngine;
 use backend::wasm::executor::execute;
 
 #[tokio::test]
@@ -19,12 +20,16 @@ async fn execution_time_limit() {
         compile_result.stderr
     );
 
-    let result = execute(compile_result.bin.as_deref().unwrap()).await;
+    let result = execute(
+        compile_result.bin.as_deref().unwrap(),
+        &WasmEngine::default(),
+    )
+    .await;
 
     dbg!(&result);
 
     assert!(
-        result.unwrap().status == 1,
+        result.unwrap().status.is_err(),
         "infinite program should have been stopped"
     );
 }

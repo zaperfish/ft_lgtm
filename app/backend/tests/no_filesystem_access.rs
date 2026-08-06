@@ -1,5 +1,6 @@
 use backend::wasm::compiler::compile;
-use backend::wasm::executor::execute;
+use backend::wasm::engine::WasmEngine;
+use backend::wasm::executor::{ExecutionError, execute};
 
 #[tokio::test]
 async fn no_filesystem_access() {
@@ -28,11 +29,18 @@ async fn no_filesystem_access() {
         compile_result.stderr
     );
 
-    let execution_result = execute(compile_result.bin.as_deref().unwrap())
-        .await
-        .unwrap();
+    let execution_result = execute(
+        compile_result.bin.as_deref().unwrap(),
+        &WasmEngine::default(),
+    )
+    .await
+    .unwrap();
 
-    assert_eq!(execution_result.status, 1, "expected network to be blocked");
+    assert_eq!(
+        execution_result.status,
+        Err(ExecutionError::Exit(1)),
+        "expected network to be blocked"
+    );
 
     assert!(
         execution_result

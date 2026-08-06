@@ -1,5 +1,6 @@
 use backend::wasm::compiler::compile;
-use backend::wasm::executor::execute;
+use backend::wasm::engine::WasmEngine;
+use backend::wasm::executor::{ExecutionError, execute};
 
 async fn compile_and_execute(source: &str) -> backend::wasm::executor::ExecutionResult {
     let compile_result = compile(source).await.unwrap();
@@ -10,9 +11,12 @@ async fn compile_and_execute(source: &str) -> backend::wasm::executor::Execution
         compile_result.stderr
     );
 
-    execute(compile_result.bin.as_deref().unwrap())
-        .await
-        .unwrap()
+    execute(
+        compile_result.bin.as_deref().unwrap(),
+        &WasmEngine::default(),
+    )
+    .await
+    .unwrap()
 }
 
 #[tokio::test]
@@ -27,7 +31,7 @@ async fn exit_code_zero() {
     )
     .await;
 
-    assert_eq!(result.status, 0);
+    assert!(result.status.is_ok());
     assert_eq!(result.stdout, "success\n");
 }
 
@@ -43,7 +47,7 @@ async fn exit_code_one() {
     )
     .await;
 
-    assert_eq!(result.status, 1);
+    assert_eq!(result.status, Err(ExecutionError::Exit(1)));
     assert_eq!(result.stderr, "failed\n");
 }
 
@@ -60,6 +64,6 @@ async fn exit_code_custom() {
     .await;
 
     // Somehow wasmtime turns nonzero exit codes to 1 always.
-    assert_eq!(result.status, 1);
+    assert_eq!(result.status, Err(ExecutionError::Exit(1)));
     assert_eq!(result.stderr, "custom exit\n");
 }
