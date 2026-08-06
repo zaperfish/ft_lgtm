@@ -20,7 +20,7 @@ The project demonstrates modern cloud-native concepts:
 - **Grafana LGTM stack** for observability
 
 <p align="center">
-  <img src="assets/demo.png" alt="Demo" width="600">
+  <img src="assets/demo.png" alt="Demo">
 </p>
 
 ## Features
