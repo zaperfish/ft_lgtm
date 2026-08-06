@@ -426,6 +426,7 @@
 	.editor-pane {
 		padding: 20px 24px;
 		flex-shrink: 0;
+		min-width: 0;
 		box-sizing: border-box;
 	}
 
@@ -452,6 +453,7 @@
 	.output-pane {
 		padding: 20px 24px;
 		flex-shrink: 0;
+		min-width: 0;
 		box-sizing: border-box;
 	}
 	.import-item {
