@@ -39,7 +39,7 @@ build-backend-image:
 
 # Build observability image
 build-observability-image:
-    docker build -t ft-lgtm-observability:local ./docker/observability
+    docker build -t ft-lgtm-observability:local ./observability
 
 # Add docker images to the k8s cluster
 add-images:
