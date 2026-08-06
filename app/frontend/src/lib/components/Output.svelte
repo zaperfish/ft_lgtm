@@ -1,10 +1,11 @@
 <script lang="ts">
 	import { AlertCircle } from 'lucide-svelte';
 
-	let { responseStatus, compileStatus, ipfsStatus, stdout, stderr } = $props<{
+	let { responseStatus, compileStatus, ipfsStatus, executionError, stdout, stderr } = $props<{
 		responseStatus: boolean;
 		compileStatus: number;
 		ipfsStatus: boolean;
+		executionError: string | null;
 		stdout: string;
 		stderr: string;
 	}>();
@@ -29,9 +30,15 @@
 			<span>Failed to publish to ipfs</span>
 		</div>
 	{/if}
-	<p class="output-label2">Stderr</p>
+	{#if executionError}
+		<div class="compile-error">
+			<AlertCircle size="15" />
+			<span>{executionError}</span>
+		</div>
+	{/if}
+	<p class="output-label1">Stderr</p>
 	<p class="output-content">{stderr}</p>
-	<p class="output-label1">Stdout</p>
+	<p class="output-label2">Stdout</p>
 	<p class="output-content">{stdout}</p>
 {/if}
 
@@ -76,5 +83,6 @@
 		color: #555;
 		margin: 0;
 		white-space: pre-wrap;
+		overflow-wrap: anywhere;
 	}
 </style>

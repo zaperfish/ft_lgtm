@@ -6,6 +6,7 @@
 	import { browser } from '$app/environment';
 	import Editor from '$lib/components/Editor.svelte';
 	import Output from '$lib/components/Output.svelte';
+	import type { RunResponse, RunResult, ExecutionStatus } from '$lib/types';
 
 	let src = $state('fn main() {\n' + '    println!("Hello ft-lgtm!");\n' + '}');
 	let compileStatus = $state(0);
@@ -13,6 +14,7 @@
 	let responseStatus = $state(true);
 	let stdout = $state('');
 	let stderr = $state('');
+	let executionError = $state<string | null>(null);
 
 	let importCid = $state('');
 	let leftWidth = $state(60);
@@ -39,52 +41,60 @@
 				},
 				body: JSON.stringify({
 					language: 'rust',
-					src: src
+					src
 				})
 			});
 
 			if (!response.ok) {
-				responseStatus = false;
 				throw new Error('Request failed');
 			}
+
 			responseStatus = true;
 
-			const result = await response.json();
-			console.log(result.run_result);
-			compileStatus = result.run_result?.compile_result?.status;
-			if (compileStatus != 0) {
-				dotColor = '#ef4444';
-				stdout = result.run_result?.compile_result?.stdout ?? '';
-				stderr = result.run_result?.compile_result?.stderr ?? '';
-				if (result.cid) {
-					ipfsStatus = true;
-					addRun(result.cid);
-				} else {
-					ipfsStatus = false;
-				}
-			} else {
-				dotColor = '#22c55e';
-				stdout = result.run_result?.execution_result?.stdout ?? '';
-				stderr = result.run_result?.execution_result?.stderr ?? '';
-				console.log(result.cid);
-				if (result.cid) {
-					ipfsStatus = true;
-					addRun(result.cid);
-				} else {
-					ipfsStatus = false;
-				}
-			}
-			console.log(result.output);
+			const result: RunResponse = await response.json();
+
+			handleRunResult(result);
 		} catch (err) {
+			responseStatus = false;
 			console.error(err);
 		} finally {
 			isRunning = false;
 		}
 	}
 
+	function handleRunResult(result: RunResponse) {
+		const { run_result, cid } = result;
+		const { compile_result, execution_result } = run_result;
+
+		compileStatus = compile_result.status;
+		executionError = executionErrorMessage(execution_result?.status);
+
+		if (compileStatus !== 0) {
+			dotColor = '#ef4444';
+			stdout = compile_result.stdout;
+			stderr = compile_result.stderr;
+		} else {
+			dotColor = '#22c55e';
+			stdout = execution_result?.stdout ?? '';
+			stderr = execution_result?.stderr ?? '';
+		}
+
+		if (cid) {
+			ipfsStatus = true;
+			addRun(cid);
+		} else {
+			ipfsStatus = false;
+		}
+	}
+
+	function executionErrorMessage(status: ExecutionStatus | undefined): string | null {
+		if (!status || 'Ok' in status) return null;
+		return 'Exit' in status.Err ? `Program exited with code ${status.Err.Exit}` : status.Err.Trap;
+	}
+
 	async function fetchImportedCid() {
 		if (!importCid.trim()) return;
-		
+
 		try {
 			const [srcResponse, resultResponse] = await Promise.all([
 				fetch(`http://ipfs.lgtm.local/ipfs/${importCid}/main.rs`),
@@ -99,12 +109,13 @@
 			}
 
 			const fetchedSrc = await srcResponse.text();
-			const fetchedRunResult = await resultResponse.json();
+			const fetchedRunResult: RunResult = await resultResponse.json();
 
 			src = fetchedSrc;
 			stdout = fetchedRunResult.execution_result?.stdout ?? '';
 			stderr = fetchedRunResult.execution_result?.stderr ?? '';
 			compileStatus = fetchedRunResult.compile_result?.status ?? 0;
+			executionError = executionErrorMessage(fetchedRunResult.execution_result?.status);
 			shareOpen = false;
 		} catch (err) {
 			console.error('failed to fetch imported CID:', err);
@@ -262,7 +273,7 @@
 			onpointerdown={startDrag}
 		></div>
 		<div class="output-pane" style="width: {100 - leftWidth}%">
-			<Output {responseStatus} {compileStatus} {ipfsStatus} {stdout} {stderr} />
+			<Output {responseStatus} {compileStatus} {ipfsStatus} {executionError} {stdout} {stderr} />
 		</div>
 	</div>
 </div>
