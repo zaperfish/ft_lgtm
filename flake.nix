@@ -36,6 +36,8 @@
               just
               wasmtime
               nodejs_24
+              # For timeout call which gets called in the backend
+              coreutils
             ];
 
             shellHook = ''
