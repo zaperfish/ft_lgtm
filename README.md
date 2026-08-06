@@ -19,6 +19,10 @@ The project demonstrates modern cloud-native concepts:
 - **OpenTelemetry** for telemetry collection
 - **Grafana LGTM stack** for observability
 
+<p align="center">
+  <img src="assets/demo.png" alt="Demo" width="600">
+</p>
+
 ## Features
 
 ### Web Application
