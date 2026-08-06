@@ -29,10 +29,10 @@
 			<span>Failed to publish to ipfs</span>
 		</div>
 	{/if}
-	<p class="output-label1">Stdout</p>
-	<p class="output-content">{stdout}</p>
 	<p class="output-label2">Stderr</p>
 	<p class="output-content">{stderr}</p>
+	<p class="output-label1">Stdout</p>
+	<p class="output-content">{stdout}</p>
 {/if}
 
 <style>
