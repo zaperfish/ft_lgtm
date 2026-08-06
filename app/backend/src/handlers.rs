@@ -4,7 +4,7 @@ use crate::app::AppState;
 use crate::ipfs::Cid;
 use crate::telemetry::metrics::MetricsGuard;
 use crate::wasm::engine::WasmEngine;
-use crate::wasm::runner::{RunResult, run};
+use crate::wasm::runner::RunResult;
 use crate::{ipfs, wasm};
 
 use anyhow::Result;

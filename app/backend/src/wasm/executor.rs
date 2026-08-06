@@ -20,7 +20,7 @@ struct ComponentRunStates {
     pub limits: StoreLimits,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, PartialEq, Eq)]
 pub enum ExecutionError {
     Exit(i32),
     Trap(String),
@@ -73,7 +73,11 @@ pub async fn execute(bin: &[u8], wasm_engine: &WasmEngine) -> Result<ExecutionRe
         Ok(Err(())) => Err(ExecutionError::Exit(1)),
         Err(err) => {
             if let Some(exit) = err.downcast_ref::<I32Exit>() {
-                Err(ExecutionError::Exit(exit.0))
+                if exit.0 == 0 {
+                    Ok(())
+                } else {
+                    Err(ExecutionError::Exit(exit.0))
+                }
             } else if let Some(trap) = err.downcast_ref::<Trap>() {
                 Err(ExecutionError::Trap(trap.to_string()))
             } else {
