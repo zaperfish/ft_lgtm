@@ -8,6 +8,7 @@ pub struct CompileResult {
     pub status: i32,
     pub stdout: String,
     pub stderr: String,
+    #[serde(skip_serializing)]
     pub bin: Option<Vec<u8>>,
 }
 

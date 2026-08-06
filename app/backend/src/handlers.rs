@@ -52,7 +52,7 @@ pub async fn execute_handler(
         return Err(StatusError::bad_request().brief("unsupported language"));
     }
 
-    let (mut run_result, cid) = execute(&submission.src)
+    let (run_result, cid) = execute(&submission.src)
         .await
         .map_err(log_and_500("failed to execute"))?;
 
@@ -66,8 +66,6 @@ pub async fn execute_handler(
     } else {
         info!("code execution failed");
     }
-
-    run_result.compile_result.bin = None;
 
     Ok(Json(RunResponse { run_result, cid }))
 }
@@ -85,11 +83,12 @@ async fn execute(src: &str) -> Result<(RunResult, Option<String>)> {
         _ => None,
     };
 
-    let run_result = RunResult {
+    let mut run_result = RunResult {
         compile_result,
         execution_result,
     };
 
+    run_result.compile_result.bin = None;
     let cid = match ipfs::publish(&src, &run_result).await {
         Ok(cid) => Some(cid),
         Err(err) => {
